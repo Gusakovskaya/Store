@@ -13,6 +13,8 @@ class Users:
         router.add_post('/api/users', self.create_user)
         router.add_put('/api/users/{id:\d+}', self.update_user)
         router.add_delete('/api/users/{id:\d+}', self.delete_user)
+        router.add_get('/api/users/{id:\d+}/avatar', self.avatar)
+        router.add_post('/api/users/{id:\d+}/avatar', self.avatar)
 
     async def validate_post_data(self, data):
         for required_field in ['email', 'shipping_adress', 'password', 'role']:
@@ -133,4 +135,45 @@ class Users:
             )
         return web.Response(status=204)
 
+    async def avatar(self, request):
+        user_id = int(request.match_info.get('id'))
+        user = await self.get_user(user_id)
 
+        if not user:
+            return web.Response(text='User not found')
+
+        if request.method == 'GET':
+            if not user['avatar_key']:
+                return web.Response(text='Image is not set', status=404)
+
+            file = await service.s3_client.get_object(Bucket='users',
+                                                      Key=user['avatar_key'])
+            content = await file['Body'].read()
+            return web.Response(body=content, content_type=file['ContentType'])
+        else:
+            data = await request.post()
+            content = data['file'].file.read()
+            if user['avatar_key']:
+                await service.s3_client.delete_object(
+                    Bucket=settings.USER_BUCKET,
+                    Key=user['avatar_key']
+                )
+
+            avatar_key = '{}/{}'.format(user_id, data['file'].filename)
+            await service.s3_client.put_object(Bucket='users',
+                                               Key=avatar_key,
+                                               Body=content)
+
+            async with service.db_pool.acquire() as conn:
+                user = await db.exec_universal_update_query(
+                    settings.USER_DB_TABLE,
+                    set={
+                        'avatar_url': '/api/users/{}/avatar'.format(user['id']),
+                        'avatar_key': avatar_key
+                    },
+                    where={
+                        'id': user['id']
+                    },
+                    conn=conn
+                )
+            return web.json_response({'avatar_url': user['avatar_url']})
