@@ -5,3 +5,8 @@ MINIO_SECRET_KEY = 'ckRdc91yWL6gKA1ts8O6NMQPV4ExHps3jIpxALF1'
 
 USER_DB_TABLE = 'store_user'
 USER_BUCKET = 'users'
+
+ITEM_DB_TABLE = 'store_item'
+ITEM_BUCKET = 'items'
+
+CATEGORY_DB_TABLE = 'store_category'

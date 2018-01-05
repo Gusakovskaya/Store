@@ -4,9 +4,11 @@ sys.path.insert(0, '../')
 from aiohttp import web
 from utils.service import service
 from utils import db, settings
+from .base import BaseView
 
 
-class Users:
+class Users(BaseView):
+
     def register_routes(self, router):
         router.add_get('/api/users', self.list_users)
         router.add_get('/api/users/{id:\d+}', self.retrieve_user)
@@ -59,85 +61,29 @@ class Users:
 
         return None
 
-    async def get_user(self, user_id):
-        async with service.db_pool.acquire() as conn:
-            return await db.exec_universal_select_query(
-                settings.USER_DB_TABLE,
-                where={
-                    'id': user_id,
-                },
-                one=True,
-                conn=conn
-            )
-
     async def list_users(self, request):
-        async with service.db_pool.acquire() as conn:
-            users = await db.exec_universal_select_query(
-                settings.USER_DB_TABLE,
-                conn=conn
-            )
-            users = list(map(dict, users))
-        return web.json_response(users)
+        return await self.list_objects(settings.USER_DB_TABLE)
 
     async def retrieve_user(self, request):
         user_id = int(request.match_info.get('id'))
-        user = await self.get_user(user_id)
-        if not user:
-            return web.Response(text='User not found', status=404)
-        else:
-            return web.json_response(dict(user))
+        return await self.retrieve_object(settings.USER_DB_TABLE, user_id)
 
     async def create_user(self, request):
         data = await request.json()
-        fail_reason = await self.validate_post_data(data)
-        if fail_reason:
-            return web.Response(text=fail_reason, status=400)
-        async with service.db_pool.acquire() as conn:
-            user = await db.exec_universal_insert_query(
-                settings.USER_DB_TABLE,
-                set=data,
-                conn=conn
-            )
-        return web.json_response(dict(user))
+        return await self.create_object(settings.USER_DB_TABLE, data, self.validate_post_data)
 
     async def update_user(self, request):
         user_id = int(request.match_info.get('id'))
-        user = await self.get_user(user_id)
-
-        if not user:
-            return web.Response(text='User not found')
-
         data = await request.json()
-        fail_reason = await self.validate_put_data(user, data)
-        if fail_reason:
-            return web.Response(text=fail_reason, status=400)
-
-        async with service.db_pool.acquire() as conn:
-            user = await db.exec_universal_update_query(
-                settings.USER_DB_TABLE,
-                set=data,
-                where={
-                    'id': user_id
-                },
-                conn=conn
-            )
-        return web.json_response(dict(user))
+        return await self.update_object(settings.USER_DB_TABLE, user_id, data, self.validate_put_data)
 
     async def delete_user(self, request):
         user_id = int(request.match_info.get('id'))
-        async with service.db_pool.acquire() as conn:
-            await db.exec_universal_delete_query(
-                settings.USER_DB_TABLE,
-                where={
-                    'id': user_id
-                },
-                conn=conn
-            )
-        return web.Response(status=204)
+        return await self.delete_object(settings.USER_DB_TABLE, user_id)
 
     async def avatar(self, request):
         user_id = int(request.match_info.get('id'))
-        user = await self.get_user(user_id)
+        user = await self.get_object(settings.USER_DB_TABLE, user_id)
 
         if not user:
             return web.Response(text='User not found')
