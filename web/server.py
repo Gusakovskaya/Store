@@ -1,7 +1,8 @@
 from aiohttp import web
+from utils.service import service
 from views.users import Users
 from views.items import Items
-from utils.service import service
+from views.categories import Category
 
 
 async def init_service(app):
@@ -13,6 +14,7 @@ class Server(web.Application):
         super().__init__(*args, **kwargs)
         Users().register_routes(self.router)
         Items().register_routes(self.router)
+        Category().register_routes(self.router)
 
 
 server = Server()

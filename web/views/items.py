@@ -25,7 +25,7 @@ class Items(BaseView):
                 return 'Field {} must be positive'
 
         category_id = data.get('category_id')
-        category = self.get_object(settings.CATEGORY_DB_TABLE, category_id)
+        category = await self.get_object(settings.CATEGORY_DB_TABLE, category_id)
         if not category:
             return 'Category with supplied id does not exists'
         return None
@@ -38,7 +38,7 @@ class Items(BaseView):
 
         category_id = data.get('category_id')
         if category_id:
-            category = self.get_object(settings.CATEGORY_DB_TABLE, category_id)
+            category = await self.get_object(settings.CATEGORY_DB_TABLE, category_id)
             if not category:
                 return 'Category with supplied id does not exists'
 
@@ -53,14 +53,14 @@ class Items(BaseView):
 
     async def create_item(self, request):
         data = await request.json()
-        return await self.create_object(settings.USER_DB_TABLE, data, self.validate_post_data)
+        return await self.create_object(settings.ITEM_DB_TABLE, data, self.validate_post_data)
 
     async def update_item(self, request):
         user_id = int(request.match_info.get('id'))
         data = await request.json()
-        return await self.update_object(settings.USER_DB_TABLE, user_id, data, self.validate_put_data)
+        return await self.update_object(settings.ITEM_DB_TABLE, user_id, data, self.validate_put_data)
 
     async def delete_item(self, request):
         user_id = int(request.match_info.get('id'))
-        return await self.delete_object(settings.USER_DB_TABLE, user_id)
+        return await self.delete_object(settings.ITEM_DB_TABLE, user_id)
 
