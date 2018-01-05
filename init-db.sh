@@ -2,14 +2,14 @@
 
 PGPASSWORD=zhenya psql -v ON_ERROR_STOP=1 --dbname=store --username=zhenya <<-EOSQL
     CREATE TABLE IF NOT EXISTS store_user (
-        id                  serial primary key,
-        email               varchar(254),
-        avatar_url          varchar(254),
-        avatar_key          varchar(64),
-        shipping_adress     varchar(64),
-        credits             integer DEFAULT 0,
-        password            varchar(32),
-        role                varchar(32)
+        id                   serial primary key,
+        name                 varchar(32),
+        email                varchar(254),
+        avatar_url           varchar(254),
+        avatar_key           varchar(64),
+        shipping_address     varchar(64),
+        credits              integer DEFAULT 0,
+        password             varchar(32)
     );
 
     CREATE TABLE IF NOT EXISTS store_category (

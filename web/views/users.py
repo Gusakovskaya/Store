@@ -1,7 +1,11 @@
 import sys
 sys.path.insert(0, '../')
 
+import json
+
 from aiohttp import web
+from aiohttp_session import get_session
+
 from utils.service import service
 from utils import db, settings
 from .base import BaseView
@@ -15,11 +19,19 @@ class Users(BaseView):
         router.add_post('/api/users', self.create_user)
         router.add_put('/api/users/{id:\d+}', self.update_user)
         router.add_delete('/api/users/{id:\d+}', self.delete_user)
+        router.add_post('/api/users/signup', self.create_user)
+
+        router.add_post('/api/users/login', self.login)
+        router.add_post('/api/users/logout', self.logout)
+
         router.add_get('/api/users/{id:\d+}/avatar', self.avatar)
         router.add_post('/api/users/{id:\d+}/avatar', self.avatar)
 
+        router.add_get('/api/users/is-auth', self.is_auth)
+
     async def validate_post_data(self, data):
-        for required_field in ['email', 'shipping_adress', 'password', 'role']:
+        print('I am in validate_post_data')
+        for required_field in ['email', 'shipping_address', 'password', 'name']:
             if not data.get(required_field):
                 return 'Field {} is required'.format(required_field)
 
@@ -34,9 +46,6 @@ class Users(BaseView):
             )
             if existed_user:
                 return 'User with supplied email already exists'
-
-        if data['role'] not in ['admin', 'customer']:
-            return 'Role must be admin|customer'
 
         return None
 
@@ -54,11 +63,6 @@ class Users(BaseView):
                 )
                 if existed_user:
                     return 'User with supplied email already exists'
-
-        role = data.get('role')
-        if role and role not in ['admin', 'customer']:
-            return 'Role must be admin|customer'
-
         return None
 
     async def list_users(self, request):
@@ -123,3 +127,36 @@ class Users(BaseView):
                     conn=conn
                 )
             return web.json_response({'avatar_url': user['avatar_url']})
+
+    async def login(self, request):
+        data = await request.json()
+        for field in ['email', 'password']:
+            if not data.get(field):
+                return web.Response(text='Field {} is required'.format(field), status=400)
+
+        async with service.db_pool.acquire() as conn:
+            user = await db.exec_universal_select_query(
+                settings.USER_DB_TABLE,
+                where={
+                    'email': data['email'],
+                    'password': data['password']
+                },
+                one=True,
+                conn=conn
+            )
+            if not user:
+                return web.Response(text='User not found', status=400)
+        session = await get_session(request)
+        session['authorized'] = user['id']
+        return web.Response()
+
+    async def logout(self, request):
+        session = await get_session(request)
+        session.pop('authorized')
+        return web.Response()
+
+    async def is_auth(self, request):
+        session = await get_session(request)
+        user_id = session['authorized']
+        user = await self.get_object(settings.USER_DB_TABLE, user_id)
+        return web.json_response(dict(user))
